@@ -1,0 +1,21 @@
+{
+  "name": "box2d-ball-on-a-bezier",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.html",
+  "scripts": {
+    "start": "parcel index.html --open",
+    "build": "parcel build index.html"
+  },
+  "dependencies": {
+    "assets": "^3.0.1",
+    "box2dweb": "2.1.0-b",
+    "jquery": "^3.6.4",
+    "underscore": "^1.13.6"
+  },
+  "devDependencies": {
+    "@babel/core": "7.2.0",
+    "parcel-bundler": "^1.6.1"
+  },
+  "keywords": []
+}
