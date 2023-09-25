@@ -2,21 +2,48 @@ import _ from 'underscore';
 import $ from 'jquery';
 
 import Box2D from 'box2dweb';
-// const Box2D = require("box2dweb")
 
 const { b2Vec2 } = Box2D.Common.Math;
-const { b2BodyDef, b2Body, b2FixtureDef, b2World, b2DebugDraw } = Box2D.Dynamics;
-const { b2MassData, b2PolygonShape, b2CircleShape } = Box2D.Collision.Shapes;
+const { b2BodyDef, b2Body, b2FixtureDef, b2World } = Box2D.Dynamics;
+const { b2PolygonShape, b2CircleShape } = Box2D.Collision.Shapes;
 
 import config from './config.js';
 
 $.div = (cl) => $('<div>', { class: cl });
+
+const $$ = {};
+$$.getBrowserInfo = () => {
+  const uaMatch = (ua) => {
+    ua = ua.toLowerCase();
+    const match = /(edge)[\/]([\w.]+)/.exec(ua) || /(opr)[\/]([\w.]+)/.exec(ua) || /(chrome)[ \/]([\w.]+)/.exec(ua) || /(version)[ \/]([\w.]+).*(safari)[ \/]([\w.]+)/.exec(ua) || /(webkit)[ \/]([\w.]+)/.exec(ua) || /(opera)(?:.*version|)[ \/]([\w.]+)/.exec(ua) || /(msie) ([\w.]+)/.exec(ua) || ua.indexOf("trident") >= 0 && /(rv)(?::| )([\w.]+)/.exec(ua) || ua.indexOf("compatible") < 0 || /(mozilla)(?:.*? rv:([\w.]+)|)/.exec(ua) || [];
+    const platform_match = /(ipad)/.exec(ua) || /(iphone)/.exec(ua) || /(android)/.exec(ua) || /(windows phone)/.exec(ua) || /(win)/.exec(ua) || /(mac)/.exec(ua) || /(linux)/.exec(ua) || []
+    return {
+      browser: match[3] || match[1] || "",
+      version: match[2] || "0",
+      platform: platform_match[0] || ""
+    }
+  }
+
+  return uaMatch(window.navigator.userAgent);
+}
 
 class Game {
   constructor(props = {}) {
     this.props = {
       class: 'game',
       ...props,
+    };
+
+    this._isMobile = [ 'iphone', 'ipad', 'android' ].includes(
+      $$.getBrowserInfo().platform
+    );
+
+    this._events = {
+      down: !this._isMobile ? 'mousedown' : 'touchstart',
+      up: !this._isMobile ? 'mouseup' : 'touchend',
+      move: !this._isMobile ? 'mousemove' : 'touchmove',
+      enter: 'mouseenter',
+      leave: 'mouseleave',
     };
 
     this.create();
@@ -48,7 +75,8 @@ class Game {
     };
 
     this.build();
-    // this.subscribe();
+
+    this.interval = setInterval(this.update.bind(this), 1000 / 60);
   }
 
   createCanvas() {
@@ -64,7 +92,8 @@ class Game {
       .css({
         width:  config.WIDTH,
         height:  config.HEIGHT
-      });
+      })
+      .data({ action: 'canvas' });
 
     this.ctx = this.canvas[0].getContext('2d');
   }
@@ -74,18 +103,8 @@ class Game {
     this.world = new b2World(this.gravity, true);
   }
 
-  // preload() {
-  //   this.load.image('ball', require('../assets/ball.png'), 40, 40);
-  // }
-
   _preset() {
     const { POINTS, CONTROL } = config.SLOPE;
-
-    // // Temp line
-    // const line = new Phaser.Geom.Line(
-    //   POINTS.START.x, POINTS.START.y,
-    //   POINTS.END.x, POINTS.END.y
-    // );
 
     this._preset = {};
 
@@ -94,7 +113,6 @@ class Game {
 
     // Default center point
     this._preset.points = {
-      // center: line.getPoint(0.5),
       center: {
         x: POINTS.START.x + sWidth/2,
         y: POINTS.START.y + sHeight/2,
@@ -114,16 +132,12 @@ class Game {
       if (i === 0) {
         points.all = [
           // Start point
-          // new Phaser.Math.Vector2(POINTS[type].x, POINTS[type].y),
           { x: POINTS[type].x, y: POINTS[type].y },
           // Control point 0 (fixed)
-          // new Phaser.Math.Vector2(POINTS[type].x, POINTS[type].y),
           { x: POINTS[type].x, y: POINTS[type].y },
           // Control point 1 (draggable)
-          // new Phaser.Math.Vector2(points.control.x, points.control.y),
           { x: points.control.x, y: points.control.y },
           // End point
-          // new Phaser.Math.Vector2(this._preset.points.center.x, this._preset.points.center.y)
           { x: this._preset.points.center.x, y: this._preset.points.center.y },
         ];
 
@@ -132,16 +146,12 @@ class Game {
       else {
         points.all = [
           // Start point
-          // new Phaser.Math.Vector2(this._preset.points.center.x, this._preset.points.center.y),
           { x: this._preset.points.center.x, y: this._preset.points.center.y },
           // Control point 0 (draggable)
-          // new Phaser.Math.Vector2(points.control.x, points.control.y),
           { x: points.control.x, y: points.control.y },
           // Control point 1 (fixed)
-          // new Phaser.Math.Vector2(POINTS[type].x, POINTS[type].y),
           { x: POINTS[type].x, y: POINTS[type].y },
           // End point
-          // new Phaser.Math.Vector2(POINTS[type].x, POINTS[type].y),
           { x: POINTS[type].x, y: POINTS[type].y },
         ];
 
@@ -150,50 +160,12 @@ class Game {
 
       return { points };
     });
-
-    // // Remove temp line
-    // this.matter.world.remove(line);
   }
-
-  // create() {
-  //   this._preset();
-
-  //   this.parent = $(`#${this.registry.parent.config.parent}`);
-
-  //   this.matter.world.setBounds(0, 0, config.WIDTH, config.HEIGHT, 50, false, false, true, true);
-  //   this.matter.world.setGravity(config.PHYSICS.GRAVITY.x, config.PHYSICS.GRAVITY.y);
-
-  //   // this.matter.world.runner.isFixed = true;
-  //   this.matter.world.autoUpdate = false;
-
-  //   // console.log(Phaser);
-  //   // console.log(this.matter);
-  //   // console.log(this.matter.systems.cache.game);
-  //   // console.log(this.matter.systems.cache.game.config);
-  //   // console.log(this.matter.systems.cache.game.config.seed);
-  //   // console.log(Phaser.Physics.Matter);
-  //   // console.log(Phaser.Physics.Matter.Matter.Common.random);
-  //   // console.log(Phaser.Physics.Matter.Matter.Common);
-
-  //   this.graphics = this.add.graphics();
-
-  //   this.frameTime = 0;
-
-  //   this.createSlope();
-  //   this.createBall();
-
-  //   this.createTitle();
-  //   this.createCounters();
-  //   this.createButtons();
-
-  //   this.build();
-  //   this.subscribe();
-  // }
 
   store() {
     if (!config.LOCAL_STORAGE) return;
 
-    window.localStorage['matter-curve'] = JSON.stringify(
+    window.localStorage['box2d-curve'] = JSON.stringify(
       {
         slope: {
           points: {
@@ -215,9 +187,9 @@ class Game {
 
   restore() {
     if (!config.LOCAL_STORAGE) return;
-    if (!window.localStorage['matter-curve']) return;
+    if (!window.localStorage['box2d-curve']) return;
 
-    const state = JSON.parse(window.localStorage['matter-curve']);
+    const state = JSON.parse(window.localStorage['box2d-curve']);
 
     this.slope.curves.forEach(({ instance, points }, i) => {
       let centerPointIndex, controlPointIndex;
@@ -235,18 +207,10 @@ class Game {
       instance[`p${controlPointIndex}`].x = state.slope.points.control[i].x;
       instance[`p${controlPointIndex}`].y = state.slope.points.control[i].y;
 
-      // points.control.setPosition(
-      //   state.slope.points.control[i].x,
-      //   state.slope.points.control[i].y,
-      // );
       points.control.x = state.slope.points.control[i].x;
       points.control.y = state.slope.points.control[i].y;
     });
 
-    // this.slope.points.center.setPosition(
-    //   state.slope.points.center.x,
-    //   state.slope.points.center.y,
-    // );
     this.slope.points.center.x = state.slope.points.center.x;
     this.slope.points.center.y = state.slope.points.center.y;
     
@@ -261,12 +225,6 @@ class Game {
   createSlope() {
     this.slope = {
       curves: _.range(2).map((i) => {
-        // const instance = new Phaser.Curves.CubicBezier(
-        //   ...this._preset.curves[i].points.all.map((p) => {
-        //     return new Phaser.Math.Vector2(p.x, p.y);
-        //   })
-        // );
-
         const instance = this._preset.curves[i].points.all.reduce((acc, p, i) => {
           acc[`p${i}`] = { x: p.x, y: p.y };
           return acc;
@@ -274,22 +232,10 @@ class Game {
         
         // Visible points
         const points = {
-          // extreme: this.add.circle(
-          //   this._preset.curves[i].points.extreme.x,
-          //   this._preset.curves[i].points.extreme.y,
-          //   config.SLOPE.POINT.RADIUS,
-          //   config.SLOPE.COLOR
-          // ),
           extreme: {
             x: this._preset.curves[i].points.extreme.x,
             y: this._preset.curves[i].points.extreme.y
           },
-          // control: this.add.circle(
-          //   this._preset.curves[i].points.control.x,
-          //   this._preset.curves[i].points.control.y,
-          //   config.SLOPE.CONTROL.POINT.RADIUS,
-          //   config.SLOPE.CONTROL.COLOR
-          // )
           control: {
             x: this._preset.curves[i].points.control.x,
             y: this._preset.curves[i].points.control.y,
@@ -301,24 +247,12 @@ class Game {
           }
         };
 
-        // points.control
-        //   .setInteractive()
-        //   .setData('vector', instance[i === 0 ? 'p2' : 'p1'])
-        //   .setData('type', 'control')
-        //   .setData('index', i);
-        
         // Supporting data
         const data = { control: { offset: null } };
 
         return { instance, points, data };
       }),
       points: {
-        // center: this.add.circle(
-        //   this._preset.points.center.x,
-        //   this._preset.points.center.y,
-        //   config.SLOPE.POINT.RADIUS,
-        //   config.SLOPE.CONTROL.COLOR
-        // )
         center: {
           x: this._preset.points.center.x,
           y: this._preset.points.center.y,
@@ -329,33 +263,15 @@ class Game {
         }
       },
       lines: {
-        // control: new Phaser.Curves.Line(
-        //   new Phaser.Math.Vector2(
-        //     this._preset.curves[0].points.control.x,
-        //     this._preset.curves[0].points.control.y
-        //   ),
-        //   new Phaser.Math.Vector2(
-        //     this._preset.curves[1].points.control.x,
-        //     this._preset.curves[1].points.control.y
-        //   )
-        // )
         control: this._preset.curves.reduce((acc, { points }, i) => {
-          acc[`p${i}`] = { x: points.control.x, y: points.control.x };
+          acc[`p${i}`] = { x: points.control.x, y: points.control.y };
           return acc;
         }, {})
       },
-      // interactive: { points: null },
       ground: null,
       path: [],
       rects: []
     };
-
-    // this.slope.points.center
-    //   .setInteractive()
-    //   .setData('vectors', this.slope.curves.map((c, i) => {
-    //     return c.instance[i === 0 ? 'p3' : 'p0'];
-    //   }))
-    //   .setData('type', 'center');
 
     this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
       return c.instance[i === 0 ? 'p3' : 'p0'];
@@ -373,32 +289,15 @@ class Game {
         instance[`p${j}`].y = p.y;
       });
 
-      // points.extreme.setPosition(
-      //   this._preset.curves[i].points.extreme.x,
-      //   this._preset.curves[i].points.extreme.y,
-      // );
       points.extreme.x = this._preset.curves[i].points.extreme.x;
       points.extreme.y = this._preset.curves[i].points.extreme.y;
       
-      // points.control.setPosition(
-      //   this._preset.curves[i].points.control.x,
-      //   this._preset.curves[i].points.control.y,
-      // );
       points.control.x = this._preset.curves[i].points.control.x;
       points.control.y = this._preset.curves[i].points.control.y;
 
-      // points.control.setData('vector', instance[i === 0 ? 'p2' : 'p1']);
       points.control.data.vector = instance[i === 0 ? 'p2' : 'p1'];
     });
 
-    // this.slope.points.center
-    //   .setPosition(
-    //     this._preset.points.center.x,
-    //     this._preset.points.center.y,
-    //   )
-    //   .setData('vectors', this.slope.curves.map((c, i) => {
-    //     return c.instance[i === 0 ? 'p3' : 'p0'];
-    //   }));
     this.slope.points.center.x = this._preset.points.center.x;
     this.slope.points.center.y = this._preset.points.center.y;
 
@@ -427,35 +326,14 @@ class Game {
   }
 
   buildSlope() {
-    // 1 WAY
     const { POINTS } = config.SLOPE;
 
-    // const Body = Phaser.Physics.Matter.Matter.Body;
-    // const Bodies = Phaser.Physics.Matter.Matter.Bodies;
-
     this.slope.path = [
-      // ...this.slope.curves[0].instance.getPoints(POINTS.COUNT/2),
       ...this.getCurvePoints(0),
-      // ...this.slope.curves[1].instance.getPoints(POINTS.COUNT/2).slice(1)
-      ...this.getCurvePoints(1).slice(1),
+      ...this.getCurvePoints(1),
     ];
     
-    // this.slope.ground && this.matter.world.remove(this.slope.ground);
     this.slope.ground && this.world.DestroyBody(this.slope.ground);
-
-    // this.slope.ground = Bodies.fromVertices(
-    //   config.WIDTH - 0,
-    //   config.HEIGHT - POINTS.START.y,
-    //   [
-    //     new Phaser.Math.Vector2(0, config.HEIGHT),
-    //     new Phaser.Math.Vector2(0, POINTS.START.y),
-    //     ...this.slope.path,
-    //     new Phaser.Math.Vector2(config.WIDTH, POINTS.END.y),
-    //     new Phaser.Math.Vector2(config.WIDTH, config.HEIGHT)
-    //   ],
-    //   { isStatic: true },
-    //   true
-    // );
 
     const bodyDef = new b2BodyDef();
     bodyDef.type = b2Body.b2_staticBody;
@@ -463,7 +341,7 @@ class Game {
     
     this.slope.ground = this.world.CreateBody(bodyDef);
 
-    const points = [
+    const path = [
       { x: 0, y: config.HEIGHT },
       { x: 0, y: POINTS.START.y },
       ...this.slope.path,
@@ -471,73 +349,18 @@ class Game {
       { x: config.WIDTH, y: config.HEIGHT }
     ];
 
-    for (let i = 0; i < points.length - 1; i++) {
+    for (let i = 0; i < path.length - 1; i++) {
       const edgeShape = new b2PolygonShape();
 
       edgeShape.SetAsEdge(
-        new b2Vec2(points[i].x / config.SCALE, points[i].y / config.SCALE),
-        new b2Vec2(points[i+1].x / config.SCALE, points[i+1].y / config.SCALE)
+        new b2Vec2(path[i].x / config.SCALE, path[i].y / config.SCALE),
+        new b2Vec2(path[i+1].x / config.SCALE, path[i+1].y / config.SCALE)
       );
 
       this.slope.ground.CreateFixture2(edgeShape);  
     }
 
-    // Body.setPosition(this.slope.ground, {
-    //   x: config.WIDTH - this.slope.ground.bounds.min.x,
-    //   y: POINTS.START.y + (config.HEIGHT - POINTS.START.y) - this.slope.ground.bounds.max.y + (config.HEIGHT - POINTS.START.y),
-    //   // y: config.HEIGHT - this.slope.ground.bounds.max.y + (config.HEIGHT - POINTS.START.y),
-    // });
-
-    // this.slope.ground.friction = config.PHYSICS.SLOPE.FRICTION;
-
-    // this.matter.world.add(this.slope.ground);
-
-    return;
-    
-
-    // 2 WAY
-    this.slope.path = [
-      ...this.slope.curves[0].instance.getPoints(32),
-      ...this.slope.curves[1].instance.getPoints(32).slice(1)
-    ];
-
-    this.slope.rects.forEach((rect) => {
-      rect && this.matter.world.remove(rect);
-    });
-
-    let nextPosition = {};
-
-    // Slope rects
-    this.slope.rects = this.slope.path.map(({ x, y }, i) => {
-      if (i === this.slope.path.length - 1) return;
-
-      nextPosition.x = this.slope.path[i + 1].x;
-      nextPosition.y = this.slope.path[i + 1].y;
-
-      const distance = Phaser.Math.Distance.Between(nextPosition.x, nextPosition.y, x, y);
-      const angle = Phaser.Math.Angle.Between(nextPosition.x, nextPosition.y, x, y);
-
-      const rect = this.matter.add.rectangle(x, y, distance, 2, {
-        // friction: 0,
-        // frictionAir: 0,
-        // restitution: 0,
-        // ignoreGravity: true,
-        // inertia: Infinity,
-        angle,
-        isStatic: true,
-        collisionFilter: { category: this.surface.category }
-      });
-
-      // rect.density = 0
-      // rect.friction = 0.11
-      // rect.frictionStatic = 0
-      // rect.inertia = 1000
-      // rect.inverseInertia = 100000
-
-      // console.log(rect);
-
-      return rect;
-    });
+    this.slope.ground.path = path;
   }
 
   getCurvePoints(i) {
@@ -546,64 +369,25 @@ class Game {
     const { p0, p1, p2, p3 } = c.instance;
 
     const points = [];
-    // var pointA = new b2Vec2(82/SCALE, 200/SCALE);
-
-    // // point to the second point, 'pointB' about a third from the left and the bottom
-	  // var pointB = new b2Vec2(82/SCALE, 200/SCALE);
-
-    // var pointC = new b2Vec2(137/SCALE, 438/SCALE);
-    // var pointD = new b2Vec2(259/SCALE, 305/SCALE);
-
-    // // place the first point, 'pointA' in the upper left hand corner.
-    // var pointA = new b2Vec2(259/SCALE, 305/SCALE);
-
-    // // point to the second point, 'pointB' about a third from the left and the bottom
-  	// var pointB = new b2Vec2(381/SCALE, 172/SCALE);
-
-    // var pointC = new b2Vec2(612/SCALE, 360/SCALE);
-    // var pointD = new b2Vec2(612/SCALE, 360/SCALE);
 
     let x = p0.x;
     let y = p0.y;
 
-    points.push({ x, y });
-    // var x2, y2;
-    // var i;
+    const step = (1/(config.SLOPE.POINTS.COUNT/2));
 
-    // bodyDef.position.Set(0, 0);
+    for (i = 0; i < 1; i += step) {
+      var ax = Math.pow((1 - i), 3) * p0.x;
+      var ay = Math.pow((1 - i), 3) * p0.y;
+      var bx = 3 * i * Math.pow((1 - i), 2) * p1.x;
+      var by = 3 * i * Math.pow((1 - i), 2) * p1.y;
+      var cx = 3 * Math.pow(i, 2) * (1 - i) * p2.x;
+      var cy = 3 * Math.pow(i, 2) * (1 - i) * p2.y;
+      var dx = Math.pow(i, 3) * p3.x;
+      var dy = Math.pow(i, 3) * p3.y;
+      x = ax + bx + cx + dx;
+      y = ay + by + cy + dy;
 
-    // var curve = world.CreateBody(bodyDef);
-
-    // var edgeShape = new b2PolygonShape();
-    // edgeShape.SetAsEdge(new b2Vec2(0, y1), new b2Vec2(x1, y1));
-    // curve.CreateFixture2(edgeShape);
-
-    const step = (1/config.SLOPE.POINTS.COUNT/2);
-
-    for (i = 0; i < (1 - step); i += step) {
-        var ax = Math.pow((1 - i), 3) * p0.x;
-        var ay = Math.pow((1 - i), 3) * p0.y;
-        var bx = 3 * i * Math.pow((1 - i), 2) * p1.x;
-        var by = 3 * i * Math.pow((1 - i), 2) * p1.y;
-        var cx = 3 * Math.pow(i, 2) * (1 - i) * p2.x;
-        var cy = 3 * Math.pow(i, 2) * (1 - i) * p2.y;
-        var dx = Math.pow(i, 3) * p3.x;
-        var dy = Math.pow(i, 3) * p3.y;
-
-        x = ax + bx + cx + dx;
-        y = ay + by + cy + dy;
-
-        points.push({ x, y });
-
-        // var edgeShape = new b2PolygonShape();
-        // edgeShape.SetAsEdge(new b2Vec2(x1, y1), new b2Vec2(x2, y2));
-        // // edgeShape.density = 0.0;
-        // // edgeShape.friction = 10.0;
-        // // edgeShape.restitution = 10.0;
-        // curve.CreateFixture2(edgeShape);
-
-        // x1 = x2;
-        // y1 = y2;
+      points.push({ x, y });
     }
 
     return points;
@@ -708,32 +492,11 @@ class Game {
   }
 
   createBall() {
-    // this.ball = this.matter.add.image(0, 0, 'ball', 1);
-    
-    // // this.ball.setCircle(config.BALL.SIZE);
-    // this.ball.setPolygon(config.BALL.SIZE, 70);
-    // this.ball.setFriction(config.PHYSICS.BALL.FRICTION);
-    // this.ball.setFrictionAir(config.PHYSICS.BALL.FRICTION_AIR);
-    // this.ball.setBounce(config.PHYSICS.BALL.BOUNCE);
-    // this.ball.setDensity(config.PHYSICS.BALL.DENSITY);
-
-    // // // Init auxiliary props
-    // // this.ball.collide = {
-    // //   body: { id: null },
-    // //   timeout: null
-    // // };
-
-    // // this.ball.direction = { changed: false };
-
-    // const body = this.ball.body;
-    // this.matter.body.setInertia(body, config.PHYSICS.BALL.INERTIA);
-
-    // this.ball.setStatic(true);
-
     const bodyDef = new b2BodyDef();
 
     bodyDef.position.x = 0 / config.SCALE;
     bodyDef.position.y = 0 / config.SCALE;
+    bodyDef.type = b2Body.b2_dynamicBody;
 
     const fixDef = new b2FixtureDef();
     
@@ -744,28 +507,32 @@ class Game {
     
     this.ball = this.world.CreateBody(bodyDef);
     this.ball.CreateFixture(fixDef);
+
+    this.ball.image = new Image();
+    this.ball.image.src = require("../assets/ball.png");
+
+    this.ball.data = {};
+    this.setBallStatic(true);
+  }
+
+  setBallStatic(isStatic = true) {
+    this.ball.data.static = isStatic;
+    this.ball.SetAwake(!isStatic);
   }
 
   resetBall() {
     this.buildBall();
-    // this.ball.setStatic(true);
-    this.ball.SetType(b2Body.b2_staticBody);
+    this.setBallStatic(true);
   }
 
   buildBall() {
     const [ p0, p1 ] = this.slope.path.slice(0, 2);
 
-    // const p0 = this.slope.curve.getPoint(0.05);
-    // const p1 = this.slope.curve.getPoint(0.06);
-
-    // const angle = Phaser.Math.Angle.Between(p0.x, p0.y, p1.x, p1.y);
     const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x)
 
     const x = p0.x + config.BALL.SIZE * Math.sin(angle);
     const y = p0.y - config.BALL.SIZE * Math.cos(angle);
 
-    // this.ball.SetPosition(x, y);
-    // this.ball.body.angle = 0;
     this.ball.SetPosition({ x: x / config.SCALE, y: y / config.SCALE });
     this.ball.SetAngle(0);
   }
@@ -861,7 +628,6 @@ class Game {
     
     // this.buttons.reset.view.addClass('disabled');
     this.buttons.run.view.removeClass('disabled');
-    // this.input.enabled = true;
   }
 
   run() {
@@ -870,49 +636,14 @@ class Game {
 
     this.resetCounter('current');
 
-    // Set x/y-gravity before running
-    // this.matter.world.setGravity(config.PHYSICS.GRAVITY.x, config.PHYSICS.GRAVITY.y);
-
     // this.buttons.reset.view.addClass('disabled');
     this.buttons.run.view.addClass('disabled');
-    // this.input.enabled = false;
 
-    // this.ball.setStatic(false);
-    this.ball.SetType(b2Body.b2_dynamicBody);
-    // this.ball.setVelocityX(1);
-    // this.ball.setVelocityY(5);
-    // this.ball.setAngularVelocity(0.1);
-
-    // this.ball.setOnCollideEnd((data) => {
-    //   // console.log(data);
-    //   // this.ball.collide.body.id = data.collision.pair.bodyB.id;
-    //   // console.log(this.ball.collide.body.id);
-    //   // clearTimeout(this.ball.collide.timeout);
-
-    //   // this.ball.collide.timeout = setTimeout(
-    //   //   () => {
-    //   //     // this.stop();
-    //   //     // this.reset({ slope: false, counter: false });
-    //   //   },
-    //   //   config.BALL.COLLIDE.TIMEOUT
-    //   // );
-    // })
-
-    // let i = 0;
-    // this.ball.setSleepEndEvent((...args) => {
-    //   // console.log(args);
-    //   console.log(i++);
-    // })
-    
-    // this.buttons.reset.view.removeClass('disabled');
-    // console.log('STOPED');
+    this.setBallStatic(false);
   }
 
   stop() {
     this.finished = true;
-
-    // Reset x-gravity after slope ending
-    // this.matter.world.setGravity(0, config.PHYSICS.GRAVITY.y);
 
     const isNewBestResult = (
       !this.saved ||
@@ -933,199 +664,334 @@ class Game {
     this.buildBall();
   }
 
-  subscribeButtons() {
+  subscribeButtons(props = {}) {
+    props = {
+      onDown: () => {},
+      onComplete: async () => {},
+      ...props
+    };
+    
     // RESET SLOPE AND BALL
-    this.buttons.reset.view.on('click', (e) => {
-      // console.log('RESETED');
+    this.buttons.reset.view.on(this._events.down, async (e) => {
+      this.unsubscribe();
 
+      props.onDown(this.buttons.reset.view);
+      // console.log('RESETED');
+      
       // this.reset();
       this.reset({ slope: false });
+      await props.onComplete(this.buttons.reset.view);
     });
 
     // RUN BALL
-    this.buttons.run.view.on('click', (e) => {
-      // console.log('STARTED');
+    this.buttons.run.view.on(this._events.down, async (e) => {
+      this.unsubscribe();
 
+      props.onDown(this.buttons.run.view);
+      // console.log('STARTED');
+      
       this.run();
+      await props.onComplete(this.buttons.run.view);
     });
   }
 
-  subscribeSlope() {
-    const { DRAG } = config.SLOPE;
+  unsubscribeButtons() {
+    this.buttons.reset.view.off();
+    this.buttons.run.view.off();
+  }
+
+  subscribeSlope(props = {}) {
+    props = {
+      onDown: () => {},
+      onComplete: async () => {},
+      ...props
+    };
+
     const { curves } = this.slope;
 
-    this.input.setDraggable([
-      ...this.slope.curves.map( c => c.points.control ),
-      this.slope.points.center
-    ]);
+    this.canvas.on(this._events.down, async (e) => {
+      this.unsubscribe();
 
-    this.input.on('dragstart', (pointer, gameObject) => {
-      this.disableButtons();
-    });
+      const { x, y } = this._zoomEventXY(e);
+      const p = this.getPointByPosition(x, y);
 
-    this.input.on('drag', (pointer, gameObject, dragX, dragY) => {
-      const type = gameObject.data.get('type');
+      props.onDown(this.canvas, { point: p });
 
-      const model = { center: {}, control: [ {}, {} ] };
-
-      if (type === 'center') {
-        model.center.x = dragX;
-        model.center.y = dragY;
-
-        // Move control points towards center point
-        curves.forEach((c, i) => {
-          model.control[i].x = dragX + c.data.control.offset.x;
-          model.control[i].y = dragY + c.data.control.offset.y;
-        });
+      if (p === null) {
+        await props.onComplete(this.canvas, { point: p });  
+        return;
       }
-      else {
-        model.center.x = this.slope.points.center.x;
-        model.center.y = this.slope.points.center.y;
-
-        const i = gameObject.data.get('index');
-
-        if (i === 0) {
-          if (dragX > model.center.x) dragX = model.center.x;
+      
+      this.view.on(this._events.move, (e) => {
+        const { x, y } = this._zoomEventXY(e);
+        const type = p.data.type;
+  
+        const model = { center: {}, control: [ {}, {} ] };
+  
+        if (type === 'center') {
+          model.center.x = x;
+          model.center.y = y;
+  
+          // Move control points towards center point
+          curves.forEach((c, i) => {
+            model.control[i].x = x + c.data.control.offset.x;
+            model.control[i].y = y + c.data.control.offset.y;
+          });
         }
         else {
-          if (dragX < model.center.x) dragX = model.center.x;
+          model.center.x = this.slope.points.center.x;
+          model.center.y = this.slope.points.center.y;
+  
+          const i = p.data.index;
+  
+          if (i === 0) {
+            if (x > model.center.x) x = model.center.x;
+          }
+          else {
+            if (x < model.center.x) x = model.center.x;
+          }
+  
+          // Change position of dragged point
+          model.control[i].x = x;
+          model.control[i].y = y;
+          
+          // Move the opposite control point to match the control point being dragged
+          const offset = {
+            x: x - model.center.x,
+            y: y - model.center.y
+          };
+  
+          const opCurveIndex = (i + 1) % 2;
+  
+          model.control[opCurveIndex].x = model.center.x - offset.x;
+          model.control[opCurveIndex].y = model.center.y - offset.y;
         }
+  
+        this.buildPoints(type, model);
+  
+        this.build();
+      });
+  
+      this.view.on(this._events.up, async (e) => {
+        this.unsubscribe();
 
-        // Change position of dragged point
-        model.control[i].x = dragX;
-        model.control[i].y = dragY;
-        
-        // Move the opposite control point to match the control point being dragged
-        const offset = {
-          x: dragX - model.center.x,
-          y: dragY - model.center.y
-        };
+        this.enableButtons();
+        this.updateSlopeCurvesData();
 
-        const opCurveIndex = (i + 1) % 2;
-
-        model.control[opCurveIndex].x = model.center.x - offset.x;
-        model.control[opCurveIndex].y = model.center.y - offset.y;
-      }
-
-      this.buildPoints(type, model);
-
-      this.build();
-    });
-
-    this.input.on('dragend', (pointer, gameObject) => {
-      this.enableButtons();
-      this.updateSlopeCurvesData();
-
-      this.store();
-
-      // this.build();
+        this.store();
+  
+        // this.build();
+        await props.onComplete(this.canvas, { point: p });  
+      });
     });
   }
 
-  subscribe() {
-    this.subscribeSlope();
-    this.subscribeButtons();
+  unsubscribeSlope() {
+    this.canvas.off();
+    this.view.off();
   }
 
-  drawSlope() {
-    this.graphics.moveTo(this.slope.path[0].x, this.slope.path[0].y);
+  getPointByPosition(x, y) {
+    const points = [
+      this.slope.points.center,
+      ...this.slope.curves.map( c => c.points.control)
+    ];
+    
+    for(let i = 0; i < points.length; i++) {
+      const p = points[i];
 
-    for (var i = 1; i < this.slope.path.length; i++) {
-      this.graphics.lineTo(this.slope.path[i].x, this.slope.path[i].y);
+      const radius = p.data.type === 'center'
+        ? config.SLOPE.POINT.HOVER.RADIUS
+        : config.SLOPE.CONTROL.POINT.HOVER.RADIUS;
+
+      const d = Math.sqrt( Math.pow(y - p.y, 2) + Math.pow(x - p.x, 2) );
+
+      if (d < radius) return p;
     }
+
+    return null;
+  }
+
+  async subscribe(props = {}) {
+    props = {
+      onDown: () => {},
+      onComplete: async () => {},
+      loop: false,
+      ...props
+    };
+
+    await new Promise((resolve) => {
+      const onComplete = async (...args) => {
+        await props.onComplete(...args);
+        resolve();
+      };
+
+      this.subscribeSlope({ ...props, onComplete });
+      this.subscribeButtons({ ...props, onComplete });
+    });
+
+    if (props.loop) {
+      await this.subscribe(props);
+    }
+  }
+  
+  unsubscribe() {
+    this.unsubscribeSlope();
+    this.unsubscribeButtons();
   }
 
   drawGround() {
-    this.graphics.beginPath();
+    this.ctx.strokeStyle = 'transparent';
+    this.ctx.lineWidth = config.SLOPE.LINE.WIDTH;
+    this.ctx.fillStyle = config.GROUND.COLOR;
 
-    this.graphics.fillStyle(config.GROUND.COLOR);
-    this.graphics.lineStyle(8, 'transparent');
+    this.ctx.beginPath();
 
-    // Stroke slope
-    this.drawSlope();
+    const { path } = this.slope.ground;
 
-    // Stroke ground
-    this.graphics.lineTo(config.WIDTH, config.SLOPE.POINTS.END.y);
-    this.graphics.lineTo(config.WIDTH, config.HEIGHT);
-    this.graphics.lineTo(0, config.HEIGHT);
-    this.graphics.lineTo(0, config.SLOPE.POINTS.START.y);
+    this.ctx.moveTo(path[0].x, path[0].y);
 
-    this.graphics.closePath();
-    this.graphics.fillPath();
+    for (var i = 1; i < path.length; i++) {
+      this.ctx.lineTo(path[i].x, path[i].y);
+    }
 
-    // Draw slope over the ground
-    this.graphics.lineStyle(config.SLOPE.LINE.WIDTH, config.SLOPE.COLOR);
-    this.slope.curves.forEach( c =>  c.instance.draw(this.graphics) );
+    // this.ctx.closePath();
+    this.ctx.fill();
+  }
+
+  drawSlope() {
+    // Draw line
+    this.ctx.beginPath();
+
+    this.ctx.strokeStyle = config.SLOPE.COLOR;
+    this.ctx.lineWidth = config.SLOPE.LINE.WIDTH;
+
+    const { path } = this.slope;
+
+    this.ctx.moveTo(path[0].x, path[0].y);
+
+    for (var i = 1; i < path.length; i++) {
+      this.ctx.lineTo(path[i].x, path[i].y);
+    }
+
+    // this.ctx.closePath();
+    this.ctx.stroke();
+
+    // Draw points
+    this.ctx.beginPath();
+    this.ctx.fillStyle = config.SLOPE.COLOR;
+
+    this.slope.curves.forEach((c) => {
+      const { x, y } = c.points.extreme;
+
+      this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
+      this.ctx.fill();
+    })
   }
 
   drawControlLine() {
-    this.graphics.lineStyle(config.SLOPE.CONTROL.LINE.WIDTH, config.SLOPE.CONTROL.COLOR);
-    this.slope.lines.control.draw(this.graphics);
+    // Draw line
+    this.ctx.beginPath();
+
+    this.ctx.strokeStyle = config.SLOPE.CONTROL.COLOR;
+    this.ctx.lineWidth = config.SLOPE.CONTROL.LINE.WIDTH;
+
+    const { p0, p1 } = this.slope.lines.control;
+
+    this.ctx.moveTo(p0.x, p0.y);
+    this.ctx.lineTo(p1.x, p1.y);
+
+    // this.ctx.closePath();
+    this.ctx.stroke();
+
+    // Draw points
+    this.ctx.fillStyle = config.SLOPE.CONTROL.COLOR;
+    
+    // Draw center point
+    this.ctx.beginPath();
+
+    const { x, y } = this.slope.points.center;
+
+    this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
+    this.ctx.fill();
+
+    // Draw control point
+    this.ctx.beginPath();
+    this.slope.curves.forEach((c) => {
+      const { x, y } = c.points.control;
+
+      this.ctx.arc(x, y, config.SLOPE.CONTROL.POINT.RADIUS, 0, Math.PI * 2, false);
+      this.ctx.fill();
+    });
+  }
+
+  drawBall() {
+    const rotation = this.ball.GetAngle();
+    const position = this.ball.GetWorldCenter();
+
+    const x = position.x * config.SCALE;
+    const y = position.y * config.SCALE;
+
+    if (this.ball.data.static) {
+      this.ball.SetAwake(false);
+    }
+
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.rotate(rotation);
+
+    this.ctx.drawImage(
+      this.ball.image,
+      -config.BALL.SIZE,
+      -config.BALL.SIZE,
+      config.BALL.SIZE * 2,
+      config.BALL.SIZE * 2
+    );
+
+    this.ctx.restore();
   }
 
   draw() {
-    this.graphics.clear();
+    this.ctx.clearRect(0, 0, config.WIDTH, config.HEIGHT);
 
     this.drawGround();
+    this.drawSlope();
     this.drawControlLine();
+    this.drawBall();
   }
 
-  update(time, delta) {
+  update() {
+    this.world.Step(1 / 60, 10, 10);
+    
     this.draw();
 
     if (this.runnning) {
-        if (!this.finished) {
-          this.updateCounter('current', delta);
+      const bPos = this.ball.GetWorldCenter();
 
-        if (this.ball.x > config.SLOPE.POINTS.END.x) {
-          this.stop(delta);
+      const bX = bPos.x * config.SCALE;
+
+      if (!this.finished) {
+          this.updateCounter('current', 1000/60);
+
+        if (bX > config.SLOPE.POINTS.END.x) {
+          this.stop(1000/60);
         };
       }
 
       // Reset if ball have ran beyond the screen bounds
       if (
-        (this.ball.x > config.WIDTH + config.BALL.SIZE) ||
-        (this.ball.x < -config.BALL.SIZE)
+        (bX > config.WIDTH + config.BALL.SIZE) ||
+        (bX < -config.BALL.SIZE)
       ) {
         this.reset({ slope: false, counter: false });
       }
     }
 
-    this.matter.world.step(delta);
-
-    return;
-
-    // Check it if needing in fps limitation
-    this.frameTime += delta;
-    while(this.frameTime >= 16.66) {
-      this.frameTime -= 16.66;
-
-      this.draw();
-
-      if (this.runnning) {
-        if (!this.finished) {
-          this.updateCounter('current', delta);
-
-          if (this.ball.x > config.SLOPE.POINTS.END.x) {
-            this.stop(delta);
-          };
-        }
-
-        // Reset if ball have ran beyond the screen bounds
-        if (
-          (this.ball.x > config.WIDTH + config.BALL.SIZE) ||
-          (this.ball.x < -config.BALL.SIZE)
-        ) {
-          this.reset({ slope: false, counter: false });
-        }
-      }
-
-      this.matter.world.step(16.66);
-    }
+    this.world.ClearForces();
   }
 
-  subscribe(props = {}) {
-
+  destroy() {
+    clearInterval(this.interval);
   }
 
   disable() {
@@ -1134,6 +1000,34 @@ class Game {
 
   enable() {
     this.parent.removeClass('disabled');
+  }
+
+  _zoomEventXY(e) {
+    let zoom, correction;
+
+    zoom = document.body.style.zoom;
+
+    if (/^\s*\d+(\.\d+)?\s*$/.test(zoom)) {
+      // is float
+      correction = parseFloat(zoom);
+    }
+    else if (/^\s*\d+(\.\d+)?%\s*$/.test(zoom)) {
+      // is percentage
+      correction = parseInt(zoom) / 100;
+    }
+    else {
+      correction = 1;
+    }
+
+    const pageX = e.pageX / correction;
+    const pageY = e.pageY / correction;
+
+    const offset = this.canvas.offset();
+
+    return {
+      x: pageX - offset.left,
+      y: pageY - offset.top,
+    };
   }
 }
 

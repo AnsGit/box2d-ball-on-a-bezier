@@ -12,6 +12,8 @@ body {
 }
 
 .game {
+  background-color: #C2EDFF;
+  
   .canvas {
     /* ... */
   }

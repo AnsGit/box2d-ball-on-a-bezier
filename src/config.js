@@ -2,12 +2,14 @@ const config = {
   LOCAL_STORAGE: true,
   WIDTH: 1024,
   HEIGHT: 512,
-  BACKGROUND_COLOR: '0xC2EDFF',
-  SCALE: 30,
+  SCALE: 140,
   SLOPE: {
-    COLOR: '0xBF81F0',
+    COLOR: '#BF81F0',
     POINT: {
-      RADIUS: 12
+      RADIUS: 12,
+      HOVER: {
+        RADIUS: 20
+      }
     },
     LINE: {
       WIDTH: 8
@@ -18,10 +20,13 @@ const config = {
       COUNT: 40
     },
     CONTROL: {
-      COLOR: '0xFFFFFF',
+      COLOR: '#FFFFFF',
       POINT: {
         RADIUS: 8,
-        OFFSET: 0.1
+        OFFSET: 0.1,
+        HOVER: {
+          RADIUS: 20
+        }
       },
       LINE: {
         WIDTH: 2
@@ -35,7 +40,7 @@ const config = {
     }
   },
   GROUND: {
-    COLOR: '0x320E3F'
+    COLOR: '#320E3F'
   },
   BALL: {
     SIZE: 20,
@@ -51,7 +56,7 @@ const config = {
       // BOUNCE: 0.0,
       // DENSITY: 0.000008,
       // INERTIA: 0.1,
-      FRICTION: 1.0,
+      FRICTION: 2.0,
       DENSITY: 1.0,
       RESTITUTION: 0,
     },
