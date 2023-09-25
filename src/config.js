@@ -4,7 +4,7 @@ const config = {
   HEIGHT: 512,
   SCALE: 140,
   SLOPE: {
-    COLOR: '#BF81F0',
+    COLOR: '#473289',
     POINT: {
       RADIUS: 12,
       HOVER: {
@@ -40,7 +40,7 @@ const config = {
     }
   },
   GROUND: {
-    COLOR: '#320E3F'
+    COLOR: '#674FB2'
   },
   BALL: {
     SIZE: 20,

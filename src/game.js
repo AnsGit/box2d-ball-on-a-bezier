@@ -269,10 +269,14 @@ class Game {
           return acc;
         }, {})
       },
-      ground: null,
+      ground: {},
+      images: {},
       path: [],
       rects: []
     };
+
+    this.slope.ground.image = new Image();
+    this.slope.ground.image.src = require("../assets/ground.png");
 
     this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
       return c.instance[i === 0 ? 'p3' : 'p0'];
@@ -334,13 +338,13 @@ class Game {
       ...this.getCurvePoints(1),
     ];
 
-    this.slope.ground && this.world.DestroyBody(this.slope.ground);
+    this.slope.ground.body && this.world.DestroyBody(this.slope.ground.body);
     
     const bodyDef = new b2BodyDef();
     bodyDef.type = b2Body.b2_staticBody;
     bodyDef.position.Set(0, 0);
     
-    this.slope.ground = this.world.CreateBody(bodyDef);
+    this.slope.ground.body = this.world.CreateBody(bodyDef);
 
     const path = [
       { x: 0, y: config.HEIGHT },
@@ -358,7 +362,7 @@ class Game {
         new b2Vec2(path[i+1].x / config.SCALE, path[i+1].y / config.SCALE)
       );
 
-      this.slope.ground.CreateFixture2(edgeShape);  
+      this.slope.ground.body.CreateFixture2(edgeShape);  
     }
 
     this.slope.ground.path = path;
@@ -717,7 +721,7 @@ class Game {
 
     this.canvas.on(this._events.down, async (e) => {
       if (this.runnning) return;
-      
+
       this.unsubscribe();
 
       const { x, y } = this._zoomEventXY(e);
@@ -731,7 +735,7 @@ class Game {
       }
       
       this.view.on(this._events.move, (e) => {
-        const { x, y } = this._zoomEventXY(e);
+        let { x, y } = this._zoomEventXY(e);
         const type = p.data.type;
   
         const model = { center: {}, control: [ {}, {} ] };
@@ -863,8 +867,13 @@ class Game {
       this.ctx.lineTo(path[i].x, path[i].y);
     }
 
-    // this.ctx.closePath();
+    this.ctx.closePath();
     this.ctx.fill();
+
+    this.ctx.save();
+    this.ctx.clip();
+    this.ctx.drawImage(this.slope.ground.image, 0, 0, config.WIDTH, config.HEIGHT);
+    this.ctx.restore();
   }
 
   drawSlope() {

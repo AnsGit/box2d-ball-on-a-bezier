@@ -12,8 +12,9 @@ body {
 }
 
 .game {
-  background-color: #C2EDFF;
-  
+  display: flex;
+  background-color: #F6C4D7;
+
   .canvas {
     /* ... */
   }
