@@ -35,9 +35,7 @@ class Game {
       ...props,
     };
 
-    this._isMobile = [ 'iphone', 'ipad', 'android' ].includes(
-      $$.getBrowserInfo().platform
-    );
+    this._isMobile = ['iphone', 'ipad', 'android'].includes( $$.getBrowserInfo().platform );
 
     this._events = {
       down: !this._isMobile ? 'mousedown' : 'touchstart',
@@ -111,6 +109,7 @@ class Game {
 
     const sWidth = POINTS.END.x - POINTS.START.x;
     const sHeight = POINTS.END.y - POINTS.START.y;
+    const sLength = Math.sqrt( Math.pow(sWidth, 2) + Math.pow(sHeight, 2) );
 
     // Default center point
     this._preset.points = {
@@ -124,10 +123,9 @@ class Game {
     this._preset.curves = [['START', -1], ['END', 1]].map(([type, direction], i) => {
       let points = {};
 
-      // points.control = line.getPoint(0.5 + CONTROL.POINT.OFFSET * direction);
       points.control = {
-        x: this._preset.points.center.x + sWidth * CONTROL.POINT.OFFSET * direction,
-        y: this._preset.points.center.y + sHeight * CONTROL.POINT.OFFSET * direction,
+        x: this._preset.points.center.x + sWidth * CONTROL.POINT.START_OFFSET/sLength * direction,
+        y: this._preset.points.center.y + sHeight * CONTROL.POINT.START_OFFSET/sLength * direction,
       };
       
       if (i === 0) {
@@ -418,7 +416,27 @@ class Game {
 
       let isCorrect = true;
 
-      // Check if object was dragged out of the drag area
+      // Check if control point was dragged  too close to center point
+      if (type === 'control') {
+        // Check if the control point has the same position as the center point
+        if (p.x === model.center.x && p.y === model.center.y) p.y++;
+
+        const dX = p.x - model.center.x;
+        const dY = p.y - model.center.y;
+        
+        const distance = Math.sqrt( Math.pow(dX, 2) + Math.pow(dY, 2) );
+
+        const { MIN_OFFSET } = config.SLOPE.CONTROL.POINT;
+
+        if (distance < MIN_OFFSET) {
+          p.x = model.center.x + MIN_OFFSET/distance * dX;
+          p.y = model.center.y + MIN_OFFSET/distance * dY;
+
+          isCorrect = false;
+        }
+      }
+
+      // Check if point was dragged out of the drag area
       if (p.x < DRAG.AREA.MIN.x) { 
         p.x = DRAG.AREA.MIN.x;
         isCorrect = false;
@@ -719,6 +737,18 @@ class Game {
 
     const { curves } = this.slope;
 
+    if (!this._isMobile) {
+      this.canvas.on(this._events.move, async (e) => {
+        if (this.runnning) return;
+        
+        const { x, y } = this._zoomEventXY(e);
+
+        const p = this.getPointByPosition(x, y);
+
+        this.view.toggleClass('openhand', p !== null);
+      });
+    }
+
     this.canvas.on(this._events.down, async (e) => {
       if (this.runnning) return;
 
@@ -733,6 +763,10 @@ class Game {
         await props.onComplete(this.canvas, { point: p });  
         return;
       }
+
+      this.view
+        .removeClass('openhand')
+        .addClass('closedhand');
       
       this.view.on(this._events.move, (e) => {
         let { x, y } = this._zoomEventXY(e);
@@ -801,6 +835,8 @@ class Game {
   unsubscribeSlope() {
     this.canvas.off();
     this.view.off();
+
+    this.view.removeClass('openhand closedhand');
   }
 
   getPointByPosition(x, y) {

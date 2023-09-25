@@ -20,6 +20,14 @@ body {
   }
 }
 
+.game.openhand {
+  cursor: grab;
+}
+
+.game.closedhand {
+  cursor: grabbing;
+}
+
 b {
   display: contents;
 }

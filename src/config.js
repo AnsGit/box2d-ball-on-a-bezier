@@ -23,7 +23,8 @@ const config = {
       COLOR: '#FFFFFF',
       POINT: {
         RADIUS: 8,
-        OFFSET: 0.1,
+        START_OFFSET: 55,
+        MIN_OFFSET: 30,
         HOVER: {
           RADIUS: 20
         }
