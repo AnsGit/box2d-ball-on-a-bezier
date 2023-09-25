@@ -12,6 +12,7 @@ import config from './config.js';
 $.div = (cl) => $('<div>', { class: cl });
 
 const $$ = {};
+
 $$.getBrowserInfo = () => {
   const uaMatch = (ua) => {
     ua = ua.toLowerCase();
@@ -332,9 +333,9 @@ class Game {
       ...this.getCurvePoints(0),
       ...this.getCurvePoints(1),
     ];
-    
-    this.slope.ground && this.world.DestroyBody(this.slope.ground);
 
+    this.slope.ground && this.world.DestroyBody(this.slope.ground);
+    
     const bodyDef = new b2BodyDef();
     bodyDef.type = b2Body.b2_staticBody;
     bodyDef.position.Set(0, 0);
@@ -521,8 +522,10 @@ class Game {
   }
 
   resetBall() {
-    this.buildBall();
+    if (this.ball.data.static) return;
+    
     this.setBallStatic(true);
+    this.buildBall();
   }
 
   buildBall() {
@@ -532,6 +535,9 @@ class Game {
 
     const x = p0.x + config.BALL.SIZE * Math.sin(angle);
     const y = p0.y - config.BALL.SIZE * Math.cos(angle);
+    
+    // This reset of position helps the next (needed) position to be set more accurate
+    this.ball.SetPosition({ x: 0, y: 0 });
 
     this.ball.SetPosition({ x: x / config.SCALE, y: y / config.SCALE });
     this.ball.SetAngle(0);
@@ -710,6 +716,8 @@ class Game {
     const { curves } = this.slope;
 
     this.canvas.on(this._events.down, async (e) => {
+      if (this.runnning) return;
+      
       this.unsubscribe();
 
       const { x, y } = this._zoomEventXY(e);
