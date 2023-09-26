@@ -318,75 +318,157 @@ class Game {
 
     this.preset();
 
+    const objectsSettings = [
+      {
+        obj: this.slope.points.center,
+        pos: { new: this._preset.points.center }
+      },
+      ...Object.values(this.slope.lines.control).map((obj, i) => {
+        return {
+          obj,
+          pos: { new: this._preset.curves[i].points.control }
+        }
+      }),
+      ...this.slope.curves.reduce((acc, c, i) => {
+        acc.push(
+          {
+            obj: c.points.control,
+            pos: { new: this._preset.curves[i].points.control }
+          },
+          {
+            obj: c.points.extreme,
+            pos: { new: this._preset.curves[i].points.extreme }
+          },
+          ...Object.values(c.instance).map((obj, j) => {
+            return {
+              obj,
+              pos: { new: this._preset.curves[i].points.all[j] }
+            }
+          })
+        );
+
+        return acc;
+      }, [])
+    ];
+
+    await this.changeObjectsPositions(objectsSettings, {
+      ...props,
+      onUpdate: (values) => {
+        this.buildSlope();
+        props.onUpdate(values)
+      }
+    });
+    
+    this.updateSlopeCurvesData();
+  }
+
+  async collapseControlPoints(props = {}) {
+    props = {
+      toWait: true,
+      duration: 500,
+      onUpdate: () => {},
+      ...props
+    };
+    
+    const objectsSettings = [
+      ...this.slope.curves.reduce((acc, c, i) => {
+        acc.push(
+          {
+            obj: c.points.control,
+            pos: { new: this.slope.points.center }
+          },
+          {
+            obj: c.points.control.data.vector,
+            pos: { new: this.slope.points.center }
+          },
+          {
+            obj: this.slope.lines.control[`p${i}`],
+            pos: { new: this.slope.points.center }
+          },
+        );
+
+        return acc;
+      }, [])
+    ];
+
+    await this.changeObjectsPositions(objectsSettings, {
+      ...props,
+      onUpdate: (values) => {
+        this.buildSlope();
+        props.onUpdate(values)
+      }
+    });
+    
+    this.updateSlopeCurvesData();
+  }
+
+  async expandControlPoints(props = {}) {
+    props = {
+      toWait: true,
+      duration: 500,
+      onUpdate: () => {},
+      ...props
+    };
+    
+    const objectsSettings = [
+      ...this.slope.curves.reduce((acc, c, i) => {
+        const offsetX = this._preset.curves[i].points.control.x - this._preset.points.center.x;
+        const offsetY = this._preset.curves[i].points.control.y - this._preset.points.center.y;
+
+        const x = this.slope.points.center.x + offsetX;
+        const y = this.slope.points.center.y + offsetY;
+
+        acc.push(
+          {
+            obj: c.points.control,
+            pos: { new: { x, y } }
+          },
+          {
+            obj: c.points.control.data.vector,
+            pos: { new: { x, y } }
+          },
+          {
+            obj: this.slope.lines.control[`p${i}`],
+            pos: { new: { x, y } }
+          },
+        );
+
+        return acc;
+      }, [])
+    ];
+
+    await this.changeObjectsPositions(objectsSettings, {
+      ...props,
+      onUpdate: (values) => {
+        this.buildSlope();
+        props.onUpdate(values)
+      }
+    });
+    
+    this.updateSlopeCurvesData();
+  }
+
+  async changeObjectsPositions(objectsSettings, props = {}) {
+    props = {
+      duration: 500,
+      toWait: true,
+      ...props
+    }
+
     if (!props.toWait) {
-      this.slope.curves.forEach(({ instance, points }, i) => {
-        this._preset.curves[i].points.all.forEach((p, j) => {
-          instance[`p${j}`].x = p.x;
-          instance[`p${j}`].y = p.y;
-        });
-  
-        points.extreme.x = this._preset.curves[i].points.extreme.x;
-        points.extreme.y = this._preset.curves[i].points.extreme.y;
-        
-        points.control.x = this._preset.curves[i].points.control.x;
-        points.control.y = this._preset.curves[i].points.control.y;
-  
-        points.control.data.vector = instance[i === 0 ? 'p2' : 'p1'];
-      });
-  
-      this.slope.points.center.x = this._preset.points.center.x;
-      this.slope.points.center.y = this._preset.points.center.y;
-  
-      this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
-        return c.instance[i === 0 ? 'p3' : 'p0'];
-      });
-      
-      this._preset.curves.forEach((cProps, i) => {
-        this.slope.lines.control[`p${i}`].x = cProps.points.control.x;
-        this.slope.lines.control[`p${i}`].y = cProps.points.control.y;
+      objectsSettings.forEach(({ obj, pos }) => {
+        obj.x = pos.new.x;
+        obj.y = pos.new.y;
       });
 
-      this.buildSlope();
+      props.onUpdate({ offset: 1 });
     }
     else {
-      const objectsSettings = [
-        {
-          obj: this.slope.points.center,
-          pos: { new: this._preset.points.center }
-        },
-        ...Object.values(this.slope.lines.control).map((obj, i) => {
-          return {
-            obj,
-            pos: { new: this._preset.curves[i].points.control }
-          }
-        }),
-        ...this.slope.curves.reduce((acc, c, i) => {
-          acc.push(
-            {
-              obj: c.points.control,
-              pos: { new: this._preset.curves[i].points.control }
-            },
-            {
-              obj: c.points.extreme,
-              pos: { new: this._preset.curves[i].points.extreme }
-            },
-            ...Object.values(c.instance).map((obj, j) => {
-              return {
-                obj,
-                pos: { new: this._preset.curves[i].points.all[j] }
-              }
-            })
-          );
-  
-          return acc;
-        }, [])
-      ];
-  
-      objectsSettings.forEach((oSettings) => {
-        oSettings.pos.cur = { x: oSettings.obj.x, y: oSettings.obj.y };
-        oSettings.pos.diff = {
-          x: oSettings.pos.new.x - oSettings.pos.cur.x,
-          y: oSettings.pos.new.y - oSettings.pos.cur.y,
+      objectsSettings.forEach(({ obj, pos }) => {
+        pos.cur = { x: obj.x, y: obj.y };
+        pos.diff = {
+          x: pos.new.x - pos.cur.x,
+          y: pos.new.y - pos.cur.y,
         }
       })
   
@@ -401,15 +483,11 @@ class Game {
               obj.y = pos.cur.y + pos.diff.y * values.offset;
             });
   
-            this.buildSlope();
-  
             props.onUpdate(values);
           }
         }
       );
     }
-    
-    this.updateSlopeCurvesData();
   }
 
   updateSlopeCurvesData() {
@@ -673,6 +751,8 @@ class Game {
     this.ball.image = new Image();
     this.ball.image.src = config.BALL.IMAGE.SRC;
 
+    this.ball.opacity = 1;
+
     this.ball.data = {};
     this.setBallStatic(true);
   }
@@ -710,6 +790,14 @@ class Game {
 
     this.ball.SetPosition({ x: x / config.SCALE, y: y / config.SCALE });
     this.ball.SetAngle(0);
+  }
+
+  hideBall(props = {}) {
+    return this.change(this.ball, { opacity: 0 }, props);
+  }
+
+  showBall(props = {}) {
+    return this.change(this.ball, { opacity: 1 }, props);
   }
 
   createTitle() {
@@ -1167,9 +1255,13 @@ class Game {
       this.ball.SetAwake(false);
     }
 
+    if (this.ball.opacity === 0) return;
+
     this.ctx.save();
     this.ctx.translate(x, y);
     this.ctx.rotate(rotation);
+
+    this.ctx.globalAlpha = this.ball.opacity;
 
     this.ctx.drawImage(
       this.ball.image,
