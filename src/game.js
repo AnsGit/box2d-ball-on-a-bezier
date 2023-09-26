@@ -1,5 +1,6 @@
 import _ from 'underscore';
 import $ from 'jquery';
+import * as TWEEN from '@tweenjs/tween.js'
 
 import Box2D from 'box2dweb';
 
@@ -55,7 +56,7 @@ class Game {
   }
 
   create() {
-    this._preset();
+    this.preset();
 
     this.body =  $('body');
 
@@ -113,7 +114,7 @@ class Game {
     this.world = new b2World(this.gravity, true);
   }
 
-  _preset() {
+  preset() {
     const { POINTS, CONTROL } = config.SLOPE;
 
     this._preset = {};
@@ -307,37 +308,108 @@ class Game {
     this.restore();
   }
 
-  resetSlope() {
-    this.slope.curves.forEach(({ instance, points }, i) => {
-      this._preset.curves[i].points.all.forEach((p, j) => {
-        instance[`p${j}`].x = p.x;
-        instance[`p${j}`].y = p.y;
+  async resetSlope(props = {}) {
+    props = {
+      toWait: true,
+      duration: 500,
+      onUpdate: () => {},
+      ...props
+    };
+
+    this.preset();
+
+    if (!props.toWait) {
+      this.slope.curves.forEach(({ instance, points }, i) => {
+        this._preset.curves[i].points.all.forEach((p, j) => {
+          instance[`p${j}`].x = p.x;
+          instance[`p${j}`].y = p.y;
+        });
+  
+        points.extreme.x = this._preset.curves[i].points.extreme.x;
+        points.extreme.y = this._preset.curves[i].points.extreme.y;
+        
+        points.control.x = this._preset.curves[i].points.control.x;
+        points.control.y = this._preset.curves[i].points.control.y;
+  
+        points.control.data.vector = instance[i === 0 ? 'p2' : 'p1'];
+      });
+  
+      this.slope.points.center.x = this._preset.points.center.x;
+      this.slope.points.center.y = this._preset.points.center.y;
+  
+      this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
+        return c.instance[i === 0 ? 'p3' : 'p0'];
+      });
+      
+      this._preset.curves.forEach((cProps, i) => {
+        this.slope.lines.control[`p${i}`].x = cProps.points.control.x;
+        this.slope.lines.control[`p${i}`].y = cProps.points.control.y;
       });
 
-      points.extreme.x = this._preset.curves[i].points.extreme.x;
-      points.extreme.y = this._preset.curves[i].points.extreme.y;
-      
-      points.control.x = this._preset.curves[i].points.control.x;
-      points.control.y = this._preset.curves[i].points.control.y;
-
-      points.control.data.vector = instance[i === 0 ? 'p2' : 'p1'];
-    });
-
-    this.slope.points.center.x = this._preset.points.center.x;
-    this.slope.points.center.y = this._preset.points.center.y;
-
-    this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
-      return c.instance[i === 0 ? 'p3' : 'p0'];
-    });
+      this.buildSlope();
+    }
+    else {
+      const objectsSettings = [
+        {
+          obj: this.slope.points.center,
+          pos: { new: this._preset.points.center }
+        },
+        ...Object.values(this.slope.lines.control).map((obj, i) => {
+          return {
+            obj,
+            pos: { new: this._preset.curves[i].points.control }
+          }
+        }),
+        ...this.slope.curves.reduce((acc, c, i) => {
+          acc.push(
+            {
+              obj: c.points.control,
+              pos: { new: this._preset.curves[i].points.control }
+            },
+            {
+              obj: c.points.extreme,
+              pos: { new: this._preset.curves[i].points.extreme }
+            },
+            ...Object.values(c.instance).map((obj, j) => {
+              return {
+                obj,
+                pos: { new: this._preset.curves[i].points.all[j] }
+              }
+            })
+          );
+  
+          return acc;
+        }, [])
+      ];
+  
+      objectsSettings.forEach((oSettings) => {
+        oSettings.pos.cur = { x: oSettings.obj.x, y: oSettings.obj.y };
+        oSettings.pos.diff = {
+          x: oSettings.pos.new.x - oSettings.pos.cur.x,
+          y: oSettings.pos.new.y - oSettings.pos.cur.y,
+        }
+      })
+  
+      await this.change(
+        { offset: 0 }, 
+        { offset: 1 }, 
+        {
+          ...props,
+          onUpdate: (values) => {
+            objectsSettings.forEach(({ obj, pos }) => {
+              obj.x = pos.cur.x + pos.diff.x * values.offset;
+              obj.y = pos.cur.y + pos.diff.y * values.offset;
+            });
+  
+            this.buildSlope();
+  
+            props.onUpdate(values);
+          }
+        }
+      );
+    }
     
-    this._preset.curves.forEach((cProps, i) => {
-      this.slope.lines.control[`p${i}`].x = cProps.points.control.x;
-      this.slope.lines.control[`p${i}`].y = cProps.points.control.y;
-    });
-
     this.updateSlopeCurvesData();
-
-    this.buildSlope();
   }
 
   updateSlopeCurvesData() {
@@ -348,6 +420,51 @@ class Game {
         y: c.points.control.y - this.slope.points.center.y,
       };
     });
+  }
+
+  async shiftSlope(offset = 0, props = {}) {
+    props = {
+      toWait: true,
+      duration: 500,
+      ...props
+    };
+
+    const objectsSettings = [
+      config.SLOPE.DRAG.AREA.MIN,
+      config.SLOPE.DRAG.AREA.MAX,
+      config.SLOPE.POINTS.START,
+      config.SLOPE.POINTS.END,
+      this.slope.points.center,
+      ...Object.values(this.slope.lines.control),
+      ...this.slope.curves.reduce((acc, c) => {
+        acc.push(
+          c.points.control,
+          c.points.extreme,
+          ...Object.values(c.instance)
+        );
+
+        return acc;
+      }, [])
+    ].map((obj) => {
+      return { obj, x: obj.x }
+    });
+
+    await this.change(
+      { offset: 0 }, 
+      { offset }, 
+      {
+        ...props,
+        onUpdate: ({ offset }) => {
+          objectsSettings.forEach(({ obj, x }) => {
+            obj.x = x + offset;
+          });
+
+          this.build();
+        }
+      }
+    );
+
+    this.updateSlopeCurvesData();
   }
 
   buildSlope() {
@@ -679,7 +796,7 @@ class Game {
 
     this.runnning = false;
 
-    props.slope && this.resetSlope();
+    props.slope && this.resetSlope({ toWait: false });
     props.ball && this.resetBall();
 
     props.counter && this.resetCounter('current');
@@ -1076,7 +1193,49 @@ class Game {
     this.drawBall();
   }
 
+  async change(target, values = {}, props = {}) {
+    props = {
+      onStart: (...args) => {},
+      onUpdate: (...args) => {},
+      onComplete: (...args) => {},
+      easing: TWEEN.Easing.Quadratic.InOut,
+      duration: 500,
+      toWait: true,
+      ...props
+    };
+
+    await new Promise((resolve) => {
+      if (!props.toWait) {
+        props.onStart(values);
+
+        for (let key in values) {
+          target[key] = values[key];
+        }
+
+        props.onUpdate(values);
+        props.onComplete(values);
+
+        resolve();
+        return;
+      }
+
+      const tween = new TWEEN.Tween(target)
+        .to(values, props.duration)
+        .easing(props.easing)
+        .onStart(props.onStart)
+        .onUpdate(props.onUpdate)
+        .onComplete((...args) => {
+          props.onComplete(...args);
+          resolve();
+        });
+        
+      tween.start();
+    });
+  }
+
   update() {
+    TWEEN.update();
+
     this.world.Step(1 / 60, 10, 10);
     
     this.draw();
