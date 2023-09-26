@@ -37,6 +37,8 @@ class Game {
 
     this._isMobile = ['iphone', 'ipad', 'android'].includes( $$.getBrowserInfo().platform );
 
+    this._eventsNS = '.game';
+
     this._events = {
       down: !this._isMobile ? 'mousedown' : 'touchstart',
       up: !this._isMobile ? 'mouseup' : 'touchend',
@@ -45,11 +47,17 @@ class Game {
       leave: 'mouseleave',
     };
 
+    for (let type in this._events) {
+      this._events[type] += this._eventsNS;
+    }
+
     this.create();
   }
 
   create() {
     this._preset();
+
+    this.body =  $('body');
 
     this.createCanvas();
     this.createWorld();
@@ -732,8 +740,8 @@ class Game {
   }
 
   unsubscribeButtons() {
-    this.buttons.reset.view.off();
-    this.buttons.run.view.off();
+    this.buttons.reset.view.off(this._eventsNS);
+    this.buttons.run.view.off(this._eventsNS);
   }
 
   subscribeSlope(props = {}) {
@@ -776,7 +784,7 @@ class Game {
         .removeClass('openhand')
         .addClass('closedhand');
       
-      this.view.on(this._events.move, (e) => {
+      this.body.on(this._events.move, (e) => {
         let { x, y } = this._zoomEventXY(e);
         const type = p.data.type;
   
@@ -826,7 +834,7 @@ class Game {
         this.build();
       });
   
-      this.view.on(this._events.up, async (e) => {
+      this.body.on(this._events.up, async (e) => {
         this.unsubscribe();
 
         this.enableButtons();
@@ -841,8 +849,9 @@ class Game {
   }
 
   unsubscribeSlope() {
-    this.canvas.off();
-    this.view.off();
+    this.canvas.off(this._eventsNS);
+    this.view.off(this._eventsNS);
+    this.body.off(this._eventsNS);
 
     this.view.removeClass('openhand closedhand');
   }
