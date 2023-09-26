@@ -8,7 +8,7 @@ const config = {
     POINT: {
       RADIUS: 12,
       HOVER: {
-        RADIUS: 20
+        RADIUS: 18
       }
     },
     LINE: {
@@ -26,7 +26,7 @@ const config = {
         START_OFFSET: 55,
         MIN_OFFSET: 30,
         HOVER: {
-          RADIUS: 20
+          RADIUS: 18
         }
       },
       LINE: {
@@ -35,7 +35,7 @@ const config = {
     },
     DRAG: {
       AREA: {
-        MIN: { x: 85, y: 84 },
+        MIN: { x: 125, y: 84 },
         MAX: { x: 585, y: 490 },
       }
     }

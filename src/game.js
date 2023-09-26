@@ -555,8 +555,16 @@ class Game {
 
     const angle = Math.atan2(p1.y - p0.y, p1.x - p0.x)
 
-    const x = p0.x + config.BALL.SIZE * Math.sin(angle);
-    const y = p0.y - config.BALL.SIZE * Math.cos(angle);
+    let x = p0.x + config.BALL.SIZE * Math.sin(angle);
+    let y = p0.y - config.BALL.SIZE * Math.cos(angle);
+
+    // fix position if ball is under ground
+    if (
+      y > config.SLOPE.POINTS.START.y - config.BALL.SIZE &&
+      x < config.SLOPE.POINTS.START.x + config.BALL.SIZE/2
+    ) {
+      y = config.SLOPE.POINTS.START.y - config.BALL.SIZE;
+    }
     
     // This reset of position helps the next (needed) position to be set more accurate
     this.ball.SetPosition({ x: 0, y: 0 });
