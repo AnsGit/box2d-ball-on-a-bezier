@@ -9,10 +9,12 @@ body {
   justify-content: center;
   margin: 0;
   user-select: none;
+  touch-action: none;
 }
 
 #game-container {
   position: relative;
+  overflow: hidden;
 }
 
 .game {

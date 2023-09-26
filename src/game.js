@@ -88,7 +88,7 @@ class Game {
 
   createCanvas() {
     this.canvas = $('<canvas>', { class: 'canvas' });
-
+    
     const ratio = (window.devicePixelRatio === 2) ? 2 : 1;
 
     this.canvas
@@ -103,6 +103,9 @@ class Game {
       .data({ action: 'canvas' });
 
     this.ctx = this.canvas[0].getContext('2d');
+
+    this.ctx.scale(ratio, ratio);
+    this.ctx.save();
   }
 
   createWorld() {
@@ -276,13 +279,24 @@ class Game {
         }, {})
       },
       ground: {},
-      images: {},
+      grass: {},
+      flag: {},
       path: [],
       rects: []
     };
 
     this.slope.ground.image = new Image();
-    this.slope.ground.image.src = require("../assets/ground.png");
+    this.slope.ground.image.src = config.GROUND.IMAGE.SRC;
+
+    this.slope.grass.images = config.GRASS.map(({ IMAGE }) => {
+      const image = new Image();
+      image.src = IMAGE.SRC;
+
+      return image;
+    })
+
+    this.slope.flag.image = new Image();
+    this.slope.flag.image.src = config.FLAG.IMAGE.SRC;
 
     this.slope.points.center.data.vectors = this.slope.curves.map((c, i) => {
       return c.instance[i === 0 ? 'p3' : 'p0'];
@@ -540,7 +554,7 @@ class Game {
     this.ball.CreateFixture(fixDef);
 
     this.ball.image = new Image();
-    this.ball.image.src = require("../assets/ball.png");
+    this.ball.image.src = config.BALL.IMAGE.SRC;
 
     this.ball.data = {};
     this.setBallStatic(true);
@@ -568,7 +582,7 @@ class Game {
 
     // fix position if ball is under ground
     if (
-      y > config.SLOPE.POINTS.START.y - config.BALL.SIZE &&
+      y > config.SLOPE.POINTS.START.y - config.BALL.SIZE/2 &&
       x < config.SLOPE.POINTS.START.x + config.BALL.SIZE/2
     ) {
       y = config.SLOPE.POINTS.START.y - config.BALL.SIZE;
@@ -928,6 +942,36 @@ class Game {
     this.ctx.drawImage(this.slope.ground.image, 0, 0, config.WIDTH, config.HEIGHT);
     this.ctx.restore();
   }
+  
+  drawGrass() {
+    this.slope.grass.images.forEach((image, i) => {
+      const { WIDTH, HEIGHT, OFFSET } = config.GRASS[i];
+
+      let x, y;
+
+      if (i === 0) {
+        x = config.SLOPE.POINTS.START.x - WIDTH - OFFSET.RIGHT;
+        y = config.SLOPE.POINTS.START.y - HEIGHT + OFFSET.TOP;
+      }
+      else {
+        x = config.SLOPE.POINTS.END.x + OFFSET.LEFT;
+        y = config.SLOPE.POINTS.END.y - HEIGHT + OFFSET.TOP;
+      }
+
+      this.ctx.drawImage(image, x, y, WIDTH, HEIGHT);
+    })
+  }
+
+  drawFlags() {
+    ['START', 'END'].forEach((type, i) => {
+      const { WIDTH, HEIGHT, OFFSET } = config.FLAG;
+
+      const x = config.SLOPE.POINTS[type].x - WIDTH - OFFSET.RIGHT;
+      const y = config.SLOPE.POINTS[type].y - HEIGHT - OFFSET.BOTTOM;
+
+      this.ctx.drawImage(this.slope.flag.image, x, y, WIDTH, HEIGHT);
+    })
+  }
 
   drawSlope() {
     // Draw line
@@ -1025,6 +1069,8 @@ class Game {
     this.ctx.clearRect(0, 0, config.WIDTH, config.HEIGHT);
 
     this.drawGround();
+    this.drawGrass();
+    this.drawFlags();
     this.drawSlope();
     this.drawControlLine();
     this.drawBall();
@@ -1073,6 +1119,10 @@ class Game {
   }
 
   _zoomEventXY(e) {
+    if (e.touches) {
+      e = e.touches[0];
+    }
+
     let zoom, correction;
 
     zoom = document.body.style.zoom;

@@ -41,13 +41,53 @@ const config = {
     }
   },
   GROUND: {
-    COLOR: '#674FB2'
+    COLOR: '#674FB2',
+    IMAGE: {
+      SRC: require("../assets/ground.png")
+    }
+  },
+  GRASS: [
+    {
+      WIDTH: 245,
+      HEIGHT: 29,
+      OFFSET: {
+        TOP: 7,
+        RIGHT: 2
+      },
+      IMAGE: {
+        SRC: require("../assets/grass-0.png")
+      }
+    },
+    {
+      WIDTH: 406,
+      HEIGHT: 56,
+      OFFSET: {
+        TOP: 5,
+        LEFT: 7
+      },
+      IMAGE: {
+        SRC: require("../assets/grass-1.png")
+      }
+    },
+  ],
+  FLAG: {
+    WIDTH: 28,
+    HEIGHT: 48,
+    OFFSET: {
+      RIGHT: -2,
+      BOTTOM: 7
+    },
+    IMAGE: {
+      SRC: require("../assets/flag.png")
+    }
   },
   BALL: {
     SIZE: 20,
     x: 103,
     y: 200,
-    // COLLIDE: { TIMEOUT: 1000 }
+    IMAGE: {
+      SRC: require("../assets/ball.png")
+    }
   },
   PHYSICS: {
     GRAVITY: { x: 0, y: 10 },
