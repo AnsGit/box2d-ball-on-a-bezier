@@ -48,6 +48,11 @@ class Game {
       leave: 'mouseleave',
     };
 
+    this._cb = {
+      onDown: (result) => {},
+      onComplete: async (result) => {},
+    };
+
     for (let type in this._events) {
       this._events[type] += this._eventsNS;
     }
@@ -176,35 +181,35 @@ class Game {
     });
   }
 
-  store() {
-    if (!config.LOCAL_STORAGE) return;
-
-    window.localStorage['box2d-curve'] = JSON.stringify(
-      {
-        slope: {
-          points: {
-            center: {
-              x: this.slope.points.center.x,
-              y: this.slope.points.center.y
-            },
-            control: this.slope.curves.map((c) => {
-              return {
-                x: c.points.control.x,
-                y: c.points.control.y
-              }
-            })
-          }
+  getState() {
+    return {
+      slope: {
+        points: {
+          center: {
+            x: this.slope.points.center.x,
+            y: this.slope.points.center.y
+          },
+          control: this.slope.curves.map((c) => {
+            return {
+              x: c.points.control.x,
+              y: c.points.control.y
+            }
+          })
+        }
+      },
+      counters: {
+        best: {
+          duration: this.counters.best.duration
         }
       }
-    );
+    };
   }
 
-  restore() {
+  restore(state) {
     if (!config.LOCAL_STORAGE) return;
-    if (!window.localStorage['box2d-curve']) return;
+    if (!state) return;
 
-    const state = JSON.parse(window.localStorage['box2d-curve']);
-
+    // Restore slope state
     this.slope.curves.forEach(({ instance, points }, i) => {
       let centerPointIndex, controlPointIndex;
 
@@ -234,6 +239,14 @@ class Game {
     });
 
     this.updateSlopeCurvesData();
+    this.build();
+
+    // Restore counters state
+    if (state.counters.best.duration > 0) {
+      this.resetCounter('best');
+      this.updateCounter('best', state.counters.best.duration);
+      this.counters.best.view.removeClass('hidden');
+    }
   }
 
   createSlope() {
@@ -307,8 +320,6 @@ class Game {
     })
 
     this.updateSlopeCurvesData();
-
-    this.restore();
   }
 
   async resetSlope(props = {}) {
@@ -939,8 +950,10 @@ class Game {
       this.resetCounter('best');
       this.updateCounter('best', this.counters.current.duration);
     }
-
+    
     this.counters.best.view.removeClass('hidden');
+
+    this._cb.onComplete('ball', { action: 'finished' });
   }
 
   build() {
@@ -959,23 +972,23 @@ class Game {
     this.buttons.reset.view.on(this._events.down, async (e) => {
       this.unsubscribe();
 
-      props.onDown(this.buttons.reset.view);
+      this._cb.onDown(this.buttons.reset.view);
       // console.log('RESETED');
       
       // this.reset();
       this.reset({ slope: false });
-      await props.onComplete(this.buttons.reset.view);
+      await this._cb.onComplete(this.buttons.reset.view);
     });
 
     // RUN BALL
     this.buttons.run.view.on(this._events.down, async (e) => {
       this.unsubscribe();
 
-      props.onDown(this.buttons.run.view);
+      this._cb.onDown(this.buttons.run.view);
       // console.log('STARTED');
       
       this.run();
-      await props.onComplete(this.buttons.run.view);
+      await this._cb.onComplete(this.buttons.run.view);
     });
   }
 
@@ -1013,10 +1026,10 @@ class Game {
       const { x, y } = this._zoomEventXY(e);
       const p = this.getPointByPosition(x, y);
 
-      props.onDown(this.canvas, { point: p });
+      this._cb.onDown(this.canvas, { point: p });
 
       if (p === null) {
-        await props.onComplete(this.canvas, { point: p });  
+        await this._cb.onComplete(this.canvas, { point: p });  
         return;
       }
 
@@ -1080,10 +1093,8 @@ class Game {
         this.enableButtons();
         this.updateSlopeCurvesData();
 
-        this.store();
-  
         // this.build();
-        await props.onComplete(this.canvas, { point: p });  
+        await this._cb.onComplete(this.canvas, { point: p });  
       });
     });
   }
@@ -1126,13 +1137,15 @@ class Game {
     };
 
     await new Promise((resolve) => {
-      const onComplete = async (...args) => {
-        await props.onComplete(...args);
+      this._cb.onDown = props.onDown;
+
+      this._cb.onComplete = async (result) => {
+        await props.onComplete(result);
         resolve();
       };
 
-      this.subscribeSlope({ ...props, onComplete });
-      this.subscribeButtons({ ...props, onComplete });
+      this.subscribeSlope();
+      this.subscribeButtons();
     });
 
     if (props.loop) {
@@ -1377,7 +1390,7 @@ class Game {
           this.updateCounter('current', 1000/60);
 
         if (bX > config.SLOPE.POINTS.END.x) {
-          this.stop(1000/60);
+          this.stop();
         };
       }
 

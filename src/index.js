@@ -5,14 +5,22 @@ import $ from 'jquery';
 import config from './config.js';
 import Game from './game.js';
 
+
 const parent = $('#game-container');
 const game = new Game({ parent });
+
+const state = window.localStorage['box2d-curve']
+  ? JSON.parse(window.localStorage['box2d-curve'])
+  : null;
+
+game.restore(state);
 
 game.subscribe({
   onDown: (...args) => {
     console.log('DOWN', ...args);
   },
   onComplete: (...args) => {
+    window.localStorage['box2d-curve'] = JSON.stringify(game.getState());
     console.log('COMPLETE', ...args);
   },
   loop: true
