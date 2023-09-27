@@ -92,17 +92,9 @@ const config = {
   PHYSICS: {
     GRAVITY: { x: 0, y: 10 },
     BALL: {
-      // FRICTION: 0.01,
-      // FRICTION_AIR: 0,
-      // BOUNCE: 0.0,
-      // DENSITY: 0.000008,
-      // INERTIA: 0.1,
       FRICTION: 2.0,
       DENSITY: 1.0,
       RESTITUTION: 0,
-    },
-    SLOPE: {
-      FRICTION: 0.01
     }
   }
 };

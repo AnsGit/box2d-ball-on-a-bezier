@@ -758,7 +758,7 @@ class Game {
     fixDef.friction = config.PHYSICS.BALL.FRICTION;
     fixDef.restitution = config.PHYSICS.BALL.RESTITUTION;
     fixDef.shape = new b2CircleShape(config.BALL.SIZE / config.SCALE);
-    
+
     this.ball = this.world.CreateBody(bodyDef);
     this.ball.CreateFixture(fixDef);
 
@@ -914,7 +914,9 @@ class Game {
       ...props
     };
 
-    this.runnning = false;
+    if (props.slope || props.ball) {
+      this.runnning = false;
+    }
 
     props.slope && this.resetSlope({ toWait: false });
     props.ball && this.resetBall();
@@ -937,23 +939,30 @@ class Game {
     this.setBallStatic(false);
   }
 
-  stop() {
+  stop(action = 'finished') {
     this.finished = true;
 
-    const isNewBestResult = (
-      !this.saved ||
-      (this.counters.current.duration < this.counters.best.duration)
-    );
+    if (action === 'finished') {
+      const isNewBestResult = (
+        !this.saved ||
+        (this.counters.current.duration < this.counters.best.duration)
+      );
+  
+      if (isNewBestResult) {
+        this.saved = true;
+        this.resetCounter('best');
+        this.updateCounter('best', this.counters.current.duration);
+      }
 
-    if (isNewBestResult) {
-      this.saved = true;
-      this.resetCounter('best');
-      this.updateCounter('best', this.counters.current.duration);
+      this.counters.best.view.removeClass('hidden');
     }
-    
-    this.counters.best.view.removeClass('hidden');
+    else if (action === 'stuck') {
+      this.reset({ slope: false, ball: false });
+      this.buttons.run.view.addClass('disabled');
+    }
 
-    this._cb.onComplete('ball', { action: 'finished' });
+    this.unsubscribe();
+    this._cb.onComplete('ball', { action });
   }
 
   build() {
@@ -1139,8 +1148,8 @@ class Game {
     await new Promise((resolve) => {
       this._cb.onDown = props.onDown;
 
-      this._cb.onComplete = async (result) => {
-        await props.onComplete(result);
+      this._cb.onComplete = async (...args) => {
+        await props.onComplete(...args);
         resolve();
       };
 
@@ -1201,17 +1210,6 @@ class Game {
     })
   }
 
-  drawFlags() {
-    ['START', 'END'].forEach((type, i) => {
-      const { WIDTH, HEIGHT, OFFSET } = config.FLAG;
-
-      const x = config.SLOPE.POINTS[type].x - WIDTH - OFFSET.RIGHT;
-      const y = config.SLOPE.POINTS[type].y - HEIGHT - OFFSET.BOTTOM;
-
-      this.ctx.drawImage(this.slope.flag.image, x, y, WIDTH, HEIGHT);
-    })
-  }
-
   drawSlope() {
     // Draw line
     this.ctx.beginPath();
@@ -1240,6 +1238,23 @@ class Game {
       this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
       this.ctx.fill();
     })
+  }
+
+  drawFlags() {
+    ['START', 'END'].forEach((type, i) => {
+      const { WIDTH, HEIGHT, OFFSET } = config.FLAG;
+
+      const { x, y } = config.SLOPE.POINTS[type];
+
+      const fX = x - WIDTH - OFFSET.RIGHT;
+      const fY = y - HEIGHT - OFFSET.BOTTOM;
+
+      this.ctx.drawImage(this.slope.flag.image, fX, fY, WIDTH, HEIGHT);
+
+      this.ctx.fillStyle = config.SLOPE.COLOR;
+      this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
+      this.ctx.fill();
+    });
   }
 
   drawControlLine() {
@@ -1328,8 +1343,8 @@ class Game {
 
     this.drawGround();
     this.drawGrass();
-    this.drawFlags();
     this.drawSlope();
+    this.drawFlags();
     this.drawControlLine();
     this.drawBall();
   }
@@ -1387,14 +1402,19 @@ class Game {
       const bX = bPos.x * config.SCALE;
 
       if (!this.finished) {
-          this.updateCounter('current', 1000/60);
+        this.updateCounter('current', 1000/60);
 
         if (bX > config.SLOPE.POINTS.END.x) {
-          this.stop();
+          this.stop('finished');
         };
+
+        // Reset counter if ball stopped
+        if (!this.ball.IsAwake()) {
+          this.stop('stuck');
+        }
       }
 
-      // Reset if ball have ran beyond the screen bounds
+      // Reset ball if it ran beyond the screen bounds
       if (
         (bX > config.WIDTH + config.BALL.SIZE) ||
         (bX < -config.BALL.SIZE)
