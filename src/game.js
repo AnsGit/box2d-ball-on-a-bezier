@@ -1255,13 +1255,28 @@ class Game {
     this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
     this.ctx.fill();
 
-    // Draw control point
+    // Draw control points
     this.ctx.beginPath();
     this.slope.curves.forEach((c) => {
       const { x, y } = c.points.control;
 
-      this.ctx.arc(x, y, config.SLOPE.CONTROL.POINT.RADIUS, 0, Math.PI * 2, false);
+      this.ctx.save();
+
+      const rotation = Math.atan2(y - this.slope.points.center.y, x - this.slope.points.center.x) - Math.PI/4;
+
+      this.ctx.translate(x, y);
+      this.ctx.rotate(rotation);
+
+      this.ctx.rect(
+        -config.SLOPE.CONTROL.POINT.RADIUS,
+        -config.SLOPE.CONTROL.POINT.RADIUS,
+        config.SLOPE.CONTROL.POINT.RADIUS * 2,
+        config.SLOPE.CONTROL.POINT.RADIUS * 2
+      );
+
       this.ctx.fill();
+      
+      this.ctx.restore();
     });
   }
 
