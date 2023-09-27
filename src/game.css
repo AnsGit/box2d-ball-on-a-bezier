@@ -1,3 +1,7 @@
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: sans-serif;
   display: flex;
@@ -5,21 +9,58 @@ body {
   justify-content: center;
   margin: 0;
   user-select: none;
+  touch-action: none;
 }
 
 #game-container {
   position: relative;
+  overflow: hidden;
 }
 
 .game {
+  position: relative;
+  display: flex;
+  background-color: #F6C4D7;
+  z-index: 1;
+
   .canvas {
     /* ... */
   }
 }
 
+.game.openhand {
+  cursor: grab;
+}
+
+.game.closedhand {
+  cursor: grabbing;
+}
+
 b {
   display: contents;
 }
+
+.game:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 76px;
+  width: 100%;
+  height: 239px;
+  background-image: url('../assets/clouds.svg');
+  background-position: 0 center;
+  background-size: 3005px 239px;
+  animation: __U_game-clouds 180s linear infinite;
+  z-index: -1;
+}
+
+/* @at-root { */
+  @keyframes __U_game-clouds {
+    100% {
+      background-position-x: -3005px;
+    }
+  }
+/* } */
 
 .task-title {
   position: absolute;
@@ -32,6 +73,59 @@ b {
   text-align: center;
   font-size: 20px;
   line-height: 24px;
+}
+
+.arrow {
+  position: absolute;
+  width: 24px;
+  height: 108px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  transform: translate(-50%, -100%);
+  transition: opacity 0.5s 6s;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.arrow:before {
+  content: '';
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #E495B3;
+  animation: __U_game-arrow-pulsaton 1s 6s alternate infinite;
+}
+
+/* @at-root { */
+  @keyframes __U_game-arrow-pulsaton {
+    100% {
+      opacity: 0.75;
+    }
+  }
+/* } */
+
+
+.arrow:after {
+  content: '';
+  width: 100%;
+  height: 76px;
+  background: url('../assets/arrow.svg') center bottom no-repeat;
+  transition: transform 1s 6.5s;
+}
+
+.arrow.hidden {
+  transition-delay: 0s;
+}
+
+.arrow.hidden:before {
+  animation: none;
+}
+
+.arrow.hidden:after {
+  transition-delay: 0s;
+  transform: translateY(100%);
 }
 
 .counters {
@@ -50,10 +144,11 @@ b {
   justify-content: center;
   width: 180px;
   height: 90px;
-  background: #765FDE;
+  background: #309CC1;
   border-radius: 20px;
   color: #FFFFFF;
-  transition: opacity 0.5s;
+  transition-property: opacity, transform;
+  transition-duration: 0.5s;
 }
 
 .counter > .title {
@@ -67,8 +162,16 @@ b {
   font-weight: 700;
 }
 
-.counter:not(:last-child) {
+.counter.best {
   margin-bottom: 16px;
+}
+
+.counter.current {
+  z-index: 1;
+}
+
+.counter.hidden {
+  transform: translateY(100%);
 }
 
 .buttons {

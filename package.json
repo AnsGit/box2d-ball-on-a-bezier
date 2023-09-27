@@ -8,6 +8,7 @@
     "build": "parcel build index.html"
   },
   "dependencies": {
+    "@tweenjs/tween.js": "^21.0.0",
     "assets": "^3.0.1",
     "box2dweb": "2.1.0-b",
     "jquery": "^3.6.4",
