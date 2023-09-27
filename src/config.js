@@ -8,7 +8,8 @@ const config = {
     POINT: {
       RADIUS: 12,
       HOVER: {
-        RADIUS: 18
+        RADIUS: 18,
+        SCALE: 1.33
       }
     },
     LINE: {
@@ -26,7 +27,8 @@ const config = {
         START_OFFSET: 55,
         MIN_OFFSET: 30,
         HOVER: {
-          RADIUS: 18
+          RADIUS: 18,
+          SCALE: 1.5
         }
       },
       LINE: {

@@ -266,6 +266,7 @@ class Game {
           control: {
             x: this._preset.curves[i].points.control.x,
             y: this._preset.curves[i].points.control.y,
+            scale: 1,
             data: {
               vector: instance[i === 0 ? 'p2' : 'p1'],
               type: 'control',
@@ -283,6 +284,7 @@ class Game {
         center: {
           x: this._preset.points.center.x,
           y: this._preset.points.center.y,
+          scale: 1,
           data: {
             vectors: null,
             type: 'center'
@@ -1024,6 +1026,8 @@ class Game {
         const p = this.getPointByPosition(x, y);
 
         this.view.toggleClass('openhand', p !== null);
+
+        this.togglePointHover(p);
       });
     }
 
@@ -1045,6 +1049,8 @@ class Game {
       this.view
         .removeClass('openhand')
         .addClass('closedhand');
+
+      this.togglePointHover(p);
       
       this.body.on(this._events.move, (e) => {
         let { x, y } = this._zoomEventXY(e);
@@ -1099,6 +1105,8 @@ class Game {
       this.body.on(this._events.up, async (e) => {
         this.unsubscribe();
 
+        this.togglePointHover(false);
+
         this.enableButtons();
         this.updateSlopeCurvesData();
 
@@ -1114,6 +1122,20 @@ class Game {
     this.body.off(this._eventsNS);
 
     this.view.removeClass('openhand closedhand');
+  }
+
+  togglePointHover(p) {
+    this.slope.curves.forEach((c) => {
+      c.points.control.scale = 1;
+    });
+
+    this.slope.points.center.scale = 1;
+
+    if (p) {
+      p.scale = (p.data.type == 'control')
+        ? config.SLOPE.CONTROL.POINT.HOVER.SCALE
+        : config.SLOPE.POINT.HOVER.SCALE;
+    }
   }
 
   getPointByPosition(x, y) {
@@ -1278,15 +1300,21 @@ class Game {
     // Draw center point
     this.ctx.beginPath();
 
-    const { x, y } = this.slope.points.center;
+    const { x, y, scale } = this.slope.points.center;
 
-    this.ctx.arc(x, y, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
+    this.ctx.save();
+    this.ctx.translate(x, y);
+    this.ctx.scale(scale, scale);
+    
+    this.ctx.arc(0, 0, config.SLOPE.POINT.RADIUS, 0, Math.PI * 2, false);
     this.ctx.fill();
+
+    this.ctx.restore();
 
     // Draw control points
     this.ctx.beginPath();
     this.slope.curves.forEach((c) => {
-      const { x, y } = c.points.control;
+      const { x, y, scale } = c.points.control;
 
       this.ctx.save();
 
@@ -1294,6 +1322,7 @@ class Game {
 
       this.ctx.translate(x, y);
       this.ctx.rotate(rotation);
+      this.ctx.scale(scale, scale);
 
       this.ctx.rect(
         -config.SLOPE.CONTROL.POINT.RADIUS,
