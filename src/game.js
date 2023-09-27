@@ -65,6 +65,8 @@ class Game {
     this.createSlope();
     this.createBall();
 
+    this.createArrow();
+
     this.createTitle();
     this.createCounters();
     this.createButtons();
@@ -74,6 +76,7 @@ class Game {
       .append(
         this.canvas,
         this.title.view,
+        this.arrow,
         this.counters.view,
         this.buttons.view
       );
@@ -800,6 +803,24 @@ class Game {
     return this.change(this.ball, { opacity: 1 }, props);
   }
 
+  createArrow() {
+    this.arrow = $.div('arrow hidden');
+
+    this.hideArrow();
+  }
+
+  showArrow(x = this.slope.points.center.x, y = this.slope.points.center.y) {
+    this.arrow.css({ left: x, top: y });
+
+    this.arrow[0].offsetWidth;
+    this.arrow.removeClass('hidden');
+  }
+
+  hideArrow() {
+    this.arrow[0].offsetWidth;
+    this.arrow.addClass('hidden');
+  }
+
   createTitle() {
     this.title = {
       view: $('<div>', { class: 'task-title', html: 'Нарисуй такую форму склона, чтобы мяч скатился по нему за <b>наименьшее</b> время.<br>Для этого нажми на склон и перемещай полученную точку.' })
@@ -1359,14 +1380,6 @@ class Game {
 
   destroy() {
     clearInterval(this.interval);
-  }
-
-  disable() {
-    this.parent.addClass('disabled');
-  }
-
-  enable() {
-    this.parent.removeClass('disabled');
   }
 
   _zoomEventXY(e) {
